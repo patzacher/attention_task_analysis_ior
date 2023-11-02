@@ -7,25 +7,25 @@ R code describing the data analysis pipeline collected while participants (n=10)
 ## Installation 
 To use this code, ensure you have the required R packages installed. The essential packages include:
 
-psych
+`psych`
 
-readr
+`readr`
 
-Hmisc
+`Hmisc`
 
-Rmisc
+`Rmisc`
 
-readxl
+`readxl`
 
-tidyverse
+`tidyverse`
 
-plyr
+`plyr`
 
-ez
+`ez`
 
-statmod
+`statmod`
 
-ggplot2
+`ggplot2`
 
 The packages can be installed in R using the install.packages("package_name") command.
 
