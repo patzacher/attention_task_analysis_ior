@@ -1,0 +1,89 @@
+---
+title: "IOR Control Experiment Data Analysis" 
+author: "P. Zacher" 
+date: "2023-11-01" 
+output: html_document 
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load packages
+```{r, warning=FALSE, message=FALSE}
+library(psych) # for stats
+library(readr) # for importing data
+library(Hmisc) # for plotting
+library(Rmisc) # for standard error calc
+library(readxl) # for reading excel files
+library(tidyverse) # packages for data science
+library(plyr)
+library(ez) # for stats
+library(statmod)
+library(ggplot2) # plotting
+library(knitr) # creating nice tables
+```
+
+### Import Data 
+The data contains observations for each participant who completed the task and
+for each trial. Variables of interest are the trial number (`trialNum`),
+duration the participant had to orient, engage, and disengage attention
+(`ISIadj`), the number of attention shifts required to attend to the target
+digit (`targetIndex`), whether the participant answered correctly (`correct`),
+and the number of staircase reversals completed for each trial type
+(`nReversals`).
+```{r}
+behavioral_data <- read.csv(file = "visual_shifting_ior_control_data.csv")
+```
+
+## Data Cleaning
+Filter trials not at threshold (nReversal != 0). 
+```{r, results='asis'}
+behavioral_data_clean <- behavioral_data %>% filter(nReversal != 0)
+behavioral_data_clean$ISIms <- behavioral_data_clean$ISIadj*1000
+behavioral_data_clean$targetIndex <- as.factor(behavioral_data_clean$targetIndex)
+```
+
+### Figures
+```{r}
+# Mean shifting speed for each participant and target index
+behavioral_data_summ_p <- behavioral_data_clean %>%
+  dplyr::group_by(p, targetIndex) %>%
+  dplyr::summarize(meanISIms = mean(ISIms))
+
+# Use `summarySEwithin` function from the Rmisc package to calculate within-
+# subject standard error.
+behavioral_data_summ_se <- summarySEwithin(behavioral_data_summ_p,
+                                           measurevar = "meanISIms",
+                                           withinvars = "targetIndex",
+                                           idvar = "p")
+
+# Bar plot with points for mean performance for each participant and error bars
+# representing the standard error corrected for within-subjects effects.
+ggplot(behavioral_data_summ_se,
+       aes(x = targetIndex,
+           y = meanISIms,
+           fill = targetIndex)) +
+  geom_col(width = 0.75, color = "black") + 
+  geom_errorbar(aes(y = meanISIms, 
+                    ymin = meanISIms - se,
+                    ymax = meanISIms + se,
+                    width = 0.05)) +
+  geom_point(data = behavioral_data_summ_p, 
+             aes(x = targetIndex,
+                 y = meanISIms),
+             color = "black", 
+             fill = "white", 
+             shape = 21, 
+             size = 1, 
+             alpha = 0.75) + 
+  xlab("Number of Shifts") + 
+  ylab("Shifting Speed") + 
+  labs(caption = "Bar plots represent the mean performance per condition. Points represent participant means, error bars represent 
+       the within-subject standard error (Morey, 2008), calculated with the Rmisc package (Hope, 2013).") +
+  theme_light() +
+  theme(legend.position = "none")
+
+```
