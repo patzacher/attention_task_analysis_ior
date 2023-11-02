@@ -42,7 +42,7 @@ behavioral_data_clean$targetIndex <- as.factor(behavioral_data_clean$targetIndex
 
 ## Figures
 
-This section generates a figure to illustrate the mean shifting speed for each participant and target index. It uses group summarization and error bar plotting to represent the mean performance per condition. The error bars are calculated for within-subject standard error using the `Rmisc` package.
+This section generates a figure to illustrate the mean shifting speed for each participant and target index. It uses group summarization and error bar plotting to represent the mean performance per condition. The error bars are calculated for within-subject standard error (Morey, 2008) using the `Rmisc` package.
 
 The figure is created using `ggplot2` and demonstrates the mean performance per condition, with points indicating participant means and error bars representing within-subject standard errors.
 
