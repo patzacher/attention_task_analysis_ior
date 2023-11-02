@@ -23,7 +23,6 @@ library(plyr)
 library(ez) # for stats
 library(statmod)
 library(ggplot2) # plotting
-library(knitr) # creating nice tables
 ```
 
 ### Import Data 
