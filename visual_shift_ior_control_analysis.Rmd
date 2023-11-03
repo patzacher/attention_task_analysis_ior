@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ### Load packages
 ```{r, warning=FALSE, message=FALSE}
 library(psych) # for stats
+library(psychReport) # for reproducible reports
 library(readr) # for importing data
 library(Hmisc) # for plotting
 library(Rmisc) # for standard error calc
@@ -86,29 +87,32 @@ ggplot(behavioral_data_summ_se,
   theme(legend.position = "none")
 
 ```
-## IN DEVELOPMENT
 ### ANOVA
 ```{r}
-# Convert participant and target index cols to factor
+# Convert `participant` and `target index` cols to factor
 behavioral_data_clean <- behavioral_data_clean %>%
   mutate(p = as.factor(p), targetIndex = as.factor(targetIndex))
 
-# Compute ANOVA with target index as the within-subjects factor
+# Compute 1-way ANOVA where `target index` is the within-subjects factor
 behavioral_data_clean_ANOVA <- ezANOVA(
   behavioral_data_clean,
   dv = .(ISIms),
   wid = .(p),
   within = .(targetIndex),
-  return_aov = TRUE
+  return_aov = TRUE,
+  detailed = TRUE
 )
-print(behavioral_data_clean_ANOVA)
+
+# Change effect size to partial eta squared (pes)
+behavioral_data_clean_ANOVA <- aovEffectSize(behavioral_data_clean_ANOVA, 
+                                             effectSize = "pes")
+
+# Create a nicely formatted table for results
+aovDispTable(behavioral_data_clean_ANOVA)
+
 ```
 
-## Effect Size - Partial Eta^2
-```{r}
-ss.eta2p(f=13.68458, dfn=7, dfd=63)
-```
-
+## UNDER DEVELOPMENT
 ### Planned Contrasts
 Compute planned contrasts because we have specific (directional, e.g., one 
 condition is higher or lower than another) hypotheses that we want to 
@@ -119,28 +123,9 @@ specific hypotheses.
 # Contrast 1 - Target Index. We expect fewer shifts can be completed
 # significantly faster than more shifts. This is equivalent to weights of -1,
 # -1, 1, 1. Significant (p < 0.005)
-ss.w_contrast(SpatialExoNoPrac, dv = "ISIadj", 
+ss.w_contrast(behavioral_data_clean, dv = "ISIms", 
               withinshow = c("targetIndex"), 
               wcont = c(-1, -1, 1, 1))
-
-# Contrast 2 - Target Index. We expect one shift can be completed significantly
-# faster than two shifts. This is equivalent to weights of -1, 1, 0, 0. Not
-# significant (p = 0.19).
-ss.w_contrast(SpatialExoNoPrac, dv = "ISIadj", 
-              withinshow = c("targetIndex"), 
-              wcont = c(-1, 1, 0, 0))
-
-# Contrast 3 - Target Index. We expect seven shifts can be completed
-# significantly faster than eight shifts. This is equivalent to weights of 0, 0,
-# -1, 1. Not significant (p = 0.79).
-ss.w_contrast(SpatialExoNoPrac, dv = "ISIadj", 
-              withinshow = c("targetIndex"), 
-              wcont = c(0, 0, -1, 1))
-
-# Contrast 4 - Interaction.
-ss.w_contrast(SpatialExoNoPrac, dv = "ISIadj", 
-              withinshow = c("targetIndex", "task"), 
-              wcont = c(0, 0, -1, 1))
 ```
 
 ### Tukey's HSD
