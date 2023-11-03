@@ -24,6 +24,7 @@ library(plyr)
 library(ez) # for stats
 library(statmod)
 library(ggplot2) # plotting
+library(knitr) # for formatting tables
 ```
 
 ### Import Data 
@@ -47,7 +48,7 @@ behavioral_data_clean$targetIndex <- as.factor(behavioral_data_clean$targetIndex
 ```
 
 ### Figures
-```{r}
+```{r echo = FALSE, results = 'asis'}
 # Mean shifting speed for each participant and target index
 behavioral_data_summ_p <- behavioral_data_clean %>%
   dplyr::group_by(p, targetIndex) %>%
@@ -86,7 +87,14 @@ ggplot(behavioral_data_summ_se,
   theme_light() +
   theme(legend.position = "none")
 
+kable(behavioral_data_summ_se,
+      col.names = c("Target Index", "N", "Duration (ms)", "SD", "SE", "CI"), 
+      align = "c", 
+      caption = "Shifting Speed Summary Statistics",
+      digits = 2)
+
 ```
+
 ### ANOVA
 ```{r}
 # Convert `participant` and `target index` cols to factor
@@ -120,30 +128,35 @@ test. Post-hoc tests (e.g., Tukey's HSD) would be appropriate if we had no
 specific hypotheses.
 
 ```{r}
-# Contrast 1 - Target Index. We expect fewer shifts can be completed
-# significantly faster than more shifts. This is equivalent to weights of -1,
-# -1, 1, 1. Significant (p < 0.005)
+# Contrast 1 - Target Index. We expect that not completing a spatial shift is
+# faster than completing a spatial shift. This is equivalent to weights of -7,
+# 1, 1, 1, 1, 1, 1, 1.
+
+
+# Contrast 2 - Target Index. We expect fewer shifts can be completed
+# significantly faster than more shifts. This is equivalent to weights of 0, 
+# -1, -1, -1, 1, 1, 1, 0. Significant (p < 0.005)
 ss.w_contrast(behavioral_data_clean, dv = "ISIms", 
               withinshow = c("targetIndex"), 
               wcont = c(-1, -1, 1, 1))
 ```
 
 ### Tukey's HSD
-# To use TukeyHSD(), we have to compute our ANOVA using aov().
+# To use tukey_hsd(), we have to compute our ANOVA using aov().
 ```{r}
-spatialExoANOVA2 <- aov(ISIadj ~ task + targetIndex + task*targetIndex, data = SpatialExoNoPrac)
-
-# Check the results to make sure that it looks consistent.
-summary(spatialExoANOVA2)
 # Compute Tukey's HSD on all terms in the ANOVA.
-spatialExoTukey <- TukeyHSD(spatialExoANOVA2)
+tukey <- aov(ISIms ~ targetIndex,
+             data = behavioral_data_clean) %>% tukey_hsd()
 
-# We are interested in only the significant effects in the interaction. First,
-# we'll turn the list into a data frame and then filter it to find the
-# significant differences.
-spatialExoTukeyInt <- as.data.frame(spatialExoTukey$`task:targetIndex`)
-spatialExoTukeyIntSig <- filter(spatialExoTukeyInt, `p adj` < 0.05)
+# We are interested in only the significant effects in the interaction. Filter
+# to find the significant differences.
+tukey_sig <- filter(tukey, p.adj < 0.05)
 
 # If we want to check we can use this function.
-ss.w_HSD(SpatialExoNoPrac, dv="ISIms", withinshow=c("targetIndex","task"), sig_level = 0.05, SSE=461609.8, DFE=63)
+ss.w_HSD(behavioral_data_clean, 
+         dv="ISIms",
+         withinshow=c("targetIndex"), 
+         sig_level = 0.05, 
+         SSE=461609.8, 
+         DFE=63)
 ```
