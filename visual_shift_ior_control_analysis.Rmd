@@ -126,8 +126,9 @@ Compute planned contrasts because we have specific (directional, e.g., one
 condition is higher or lower than another) hypotheses that we want to 
 test. Post-hoc tests (e.g., Tukey's HSD) would be appropriate if we had no
 specific hypotheses.
-
 ```{r}
+library(nlme) # Add to library if we end up using this approach.
+
 # Contrast 1 - Target Index. We expect that not completing a spatial shift is
 # faster than completing at least one spatial shift. This is equivalent to
 # weights of -7, 1, 1, 1, 1, 1, 1, 1.
@@ -147,7 +148,8 @@ all_contrasts <- cbind(c1, c2)
 contrasts(behavioral_data_clean$targetIndex) <- all_contrasts
 
 # Create a new model using `aov()`. 
-planned_comparisons <- aov(ISIms ~ targetIndex, data = behavioral_data_clean)
+planned_comparisons <- aov(ISIms ~ targetIndex + Error(p/targetIndex), 
+                           data = behavioral_data_clean)
 
 # Print a summary of `planned_comparisons`. Significance is two-tailed.
 # Planned contrasts revealed that shifting spatial attention at least one time
@@ -161,8 +163,8 @@ summary.lm(planned_comparisons)
 # To use tukey_hsd(), we have to compute our ANOVA using aov().
 ```{r}
 # Compute Tukey's HSD on all terms in the ANOVA.
-tukey <- aov(ISIms ~ targetIndex,
-             data = behavioral_data_clean) %>% tukey_hsd()
+tukey <- aov(ISIms ~ targetIndex + Error(p/targetIndex), 
+                           data = behavioral_data_clean) %>% tukey_hsd()
 
 # We are interested in only the significant effects in the interaction. Filter
 # to find the significant differences.
