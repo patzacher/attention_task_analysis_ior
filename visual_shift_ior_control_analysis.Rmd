@@ -87,6 +87,14 @@ ggplot(behavioral_data_summ_se,
              shape = 21, 
              size = 1, 
              alpha = 0.75) + 
+  scale_x_discrete(labels=c("0" = "0", 
+                            "1" = "1",
+                            "2" = "2",
+                            "3" = "3",
+                            "7" = "7", 
+                            "8" = "8",
+                            "9" = "9",
+                            "99" = "Catch")) +
   xlab("Number of Shifts") + 
   ylab("Shifting Speed") + 
   labs(caption = "Bar plots represent the mean performance per condition. Points represent participant means, error bars represent 
@@ -103,7 +111,6 @@ kable(behavioral_data_summ_se,
 ```
 
 ### ANOVA
-
 ```{r}
 # Convert `participant` and `target index` cols to factor
 behavioral_data_clean <- behavioral_data_clean %>%
