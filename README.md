@@ -48,8 +48,7 @@ This section generates a figure to illustrate the mean shifting speed for each p
 
 The figure is created using `ggplot2` and demonstrates the mean performance per condition, with points indicating participant means and error bars representing within-subject standard errors.
 
-![performance](https://github.com/patzacher/attention_task_analysis_ior/assets/71090911/e929ba83-4956-4008-9824-796ee73856b6)
-
+![performance](https://github.com/patzacher/attention_task_analysis_ior/assets/71090911/3a0c9292-6ef1-4e6e-9328-691692d09628)
 
 ## Analysis
 
