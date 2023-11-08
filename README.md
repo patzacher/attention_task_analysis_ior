@@ -8,6 +8,8 @@ This project performs an analysis of behavioral data obtained from a visual atte
 - [Import Data](#import-data)
 - [Data Cleaning](#data-cleaning)
 - [Figures](#figures)
+- [Analysis](#analysis)
+- [Contribute](#contributing)
 
 ## Load Packages
 
