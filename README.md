@@ -51,7 +51,7 @@ The figure is created using `ggplot2` and demonstrates the mean performance per 
 
 ## Analysis
 
-This section computes a 1-way within-subjects analysis of variance (ANOVA) on the `behavioral_data_clean` data set, with the within-subject factor of `targetIndex` (i.e., number of attention shifts required in a trial) and the dependent variable `ISIms` (stimulus duration). Planned contrasts and post-hoc tests will also be conducted.
+This section computes a 1-way within-subjects analysis of variance (ANOVA) on the `behavioral_data_clean` data set, with the within-subject factor of `targetIndex` (i.e., number of attention shifts required in a trial) and the dependent variable `ISIms` (stimulus duration). Post-hoc tests are also conducted.
 
 ## Contributing
 Contributions to this project are welcome. If you'd like to contribute, please follow these steps:
