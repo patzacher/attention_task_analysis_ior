@@ -7,11 +7,13 @@ editor_options:
   markdown: 
     wrap: 72
 ---
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ### Load packages
+
 ```{r, warning=FALSE, message=FALSE}
 library(psych) # for stats
 library(psychReport) # for reproducible reports
@@ -27,20 +29,24 @@ library(ggplot2) # plotting
 library(knitr) # for formatting tables
 ```
 
-### Import Data 
-The data contains observations for each participant who completed the task and
-for each trial. Variables of interest are the trial number (`trialNum`),
-duration the participant had to orient, engage, and disengage attention
-(`ISIadj`), the number of attention shifts required to attend to the target
-digit (`targetIndex`), whether the participant answered correctly (`correct`),
-and the number of staircase reversals completed for each trial type
-(`nReversals`).
+### Import Data
+
+The data contains observations for each participant who completed the
+task and for each trial. Variables of interest are the trial number
+(`trialNum`), duration the participant had to orient, engage, and
+disengage attention (`ISIadj`), the number of attention shifts required
+to attend to the target digit (`targetIndex`), whether the participant
+answered correctly (`correct`), and the number of staircase reversals
+completed for each trial type (`nReversals`).
+
 ```{r}
 behavioral_data <- read.csv(file = "visual_shifting_ior_control_data.csv")
 ```
 
 ## Data Cleaning
-Filter trials not at threshold (nReversal != 0). 
+
+Filter trials not at threshold (nReversal != 0).
+
 ```{r, results='asis'}
 behavioral_data_clean <- behavioral_data %>% filter(nReversal != 0)
 behavioral_data_clean$ISIms <- behavioral_data_clean$ISIadj*1000
@@ -48,6 +54,7 @@ behavioral_data_clean$targetIndex <- as.factor(behavioral_data_clean$targetIndex
 ```
 
 ### Figures
+
 ```{r echo = FALSE, results = 'asis'}
 # Mean shifting speed for each participant and target index
 behavioral_data_summ_p <- behavioral_data_clean %>%
@@ -96,6 +103,7 @@ kable(behavioral_data_summ_se,
 ```
 
 ### ANOVA
+
 ```{r}
 # Convert `participant` and `target index` cols to factor
 behavioral_data_clean <- behavioral_data_clean %>%
@@ -120,61 +128,19 @@ aovDispTable(behavioral_data_clean_ANOVA)
 
 ```
 
-## UNDER DEVELOPMENT
-### Planned Contrasts
-Compute planned contrasts because we have specific (directional, e.g., one 
-condition is higher or lower than another) hypotheses that we want to 
-test. Post-hoc tests (e.g., Tukey's HSD) would be appropriate if we had no
-specific hypotheses.
+## Post-Hoc Tests - Tukey's HSD
 ```{r}
 library(nlme) # Add to library if we end up using this approach.
+library(multcomp) # For glht pos-hoc tests
 
-# Contrast 1 - Target Index. We expect that not completing a spatial shift is
-# faster than completing at least one spatial shift. This is equivalent to
-# weights of -7, 1, 1, 1, 1, 1, 1, 1.
-contrast1 <- c(-7, 1, 1, 1, 1, 1, 1, 1)
+# Create a new model using lme.
+planned_comparisons <- lme(ISIms ~ targetIndex, 
+                           random = ~1|p/targetIndex, # Random effects resulting from participants 
+                           data = behavioral_data_clean, 
+                           method = "ML") # Maximum likelihood
 
-# Contrast 2 - Target Index. We expect fewer shifts can be completed
-# significantly faster than more shifts. This is equivalent to weights of 0, 
-# -1, -1, -1, 1, 1, 1, 0. Disregard catch trials.
-contrast2 <- c(0, -1, -1, -1, 1, 1, 1, 0)
+# Post-hoc tests (Tukey).
+post_hocs <- glht(planned_comparisons, linfct = mcp(targetIndex = "Tukey"))
+summary(post_hocs)
 
-# Combine all contrasts into a matrix
-all_contrasts <- cbind(c1, c2)
-
-# Attach our contrasts to our dependent variable, `targetIndex`. Target index 
-# will have a contrast attribute that contains the weights specified.
-# To check use command: `behavioral_data_clean$targetIndex`
-contrasts(behavioral_data_clean$targetIndex) <- all_contrasts
-
-# Create a new model using `aov()`. 
-planned_comparisons <- aov(ISIms ~ targetIndex + Error(p/targetIndex), 
-                           data = behavioral_data_clean)
-
-# Print a summary of `planned_comparisons`. Significance is two-tailed.
-# Planned contrasts revealed that shifting spatial attention at least one time
-# is significantly different from not shifting attention, t(630) = 12.15,
-# p < 0.001, and shifting attention 1-3 times is signifcantly different than
-# shifting attention 4 or more times t(630) = 8.59, p < 0.001.
-summary.lm(planned_comparisons)
-```
-
-### Tukey's HSD
-# To use tukey_hsd(), we have to compute our ANOVA using aov().
-```{r}
-# Compute Tukey's HSD on all terms in the ANOVA.
-tukey <- aov(ISIms ~ targetIndex + Error(p/targetIndex), 
-                           data = behavioral_data_clean) %>% tukey_hsd()
-
-# We are interested in only the significant effects in the interaction. Filter
-# to find the significant differences.
-tukey_sig <- filter(tukey, p.adj < 0.05)
-
-# If we want to check we can use this function.
-ss.w_HSD(behavioral_data_clean, 
-         dv="ISIms",
-         withinshow=c("targetIndex"), 
-         sig_level = 0.05, 
-         SSE=461609.8, 
-         DFE=63)
 ```
