@@ -31,8 +31,8 @@ library(knitr) # for formatting tables
 
 ### Import Data
 
-The data contains observations for each participant who completed the
-task and for each trial. Variables of interest are the trial number
+The data contains observations of all trials for each participant who
+completed the task. Variables of interest are the trial number
 (`trialNum`), duration the participant had to orient, engage, and
 disengage attention (`ISIadj`), the number of attention shifts required
 to attend to the target digit (`targetIndex`), whether the participant
@@ -45,21 +45,34 @@ behavioral_data <- read.csv(file = "visual_shifting_ior_control_data.csv")
 
 ## Data Cleaning
 
-Filter trials not at threshold (nReversal != 0).
+Minimal data cleaning and transformation completed here as most was
+accomplished prior to importing the data. We are primarily interested in
+performance at threshold, so we will filter all trials that are not at
+threshold (`nReversal` != 0). A small number of reversals may not occur
+at threshold, but they likely do not impact our performance measure when
+included in the data set. We will also convert attention shifting times,
+`ISIadj`, to milliseconds (ms). Lastly, we will convert `targetIndex`
+and `p` to factor because they are categorical variables.
 
 ```{r, results='asis'}
 behavioral_data_clean <- behavioral_data %>% filter(nReversal != 0)
 behavioral_data_clean$ISIms <- behavioral_data_clean$ISIadj*1000
 behavioral_data_clean$targetIndex <- as.factor(behavioral_data_clean$targetIndex)
+behavioral_data_clean$p <- as.factor(behavioral_data_clean$p)
 ```
 
-### Figures
+### Descriptive Statistics
+
+Create a table with summary statistics (e.g., mean, standard deviation,
+and within-subject standard error). We will use these values to visually
+identify potential outliers.
 
 ```{r echo = FALSE, results = 'asis'}
 # Mean shifting speed for each participant and target index
 behavioral_data_summ_p <- behavioral_data_clean %>%
   dplyr::group_by(p, targetIndex) %>%
-  dplyr::summarize(meanISIms = mean(ISIms))
+  dplyr::summarize(meanISIms = mean(ISIms)) %>% 
+  ungroup()
 
 # Use `summarySEwithin` function from the Rmisc package to calculate within-
 # subject standard error.
@@ -68,6 +81,130 @@ behavioral_data_summ_se <- summarySEwithin(behavioral_data_summ_p,
                                            withinvars = "targetIndex",
                                            idvar = "p")
 
+# Add columns calculating overall mean +/- 3 standard deviations as this
+# criteria will be used if we need to remove outliers.
+behavioral_data_summ_se <- mutate(behavioral_data_summ_se, 
+                                  "mean_plus_3sd" = meanISIms + 3*sd,
+                                  "mean_minus_3sd" = meanISIms - 3*sd)
+
+# Create a nicely formatted table with summary statistics
+kable(behavioral_data_summ_se,
+      col.names = c("Target Index", "N", "Duration (ms)", "SD", "SE", "CI", "M + 3SD", "M - 3SD"), 
+      align = "c", 
+      caption = "Shifting Speed Summary Statistics",
+      digits = 2)
+
+```
+
+```{r}
+# Boxplot summarizing performance and identifying potential outliers
+ggplot(behavioral_data_summ_p,
+       aes(x = targetIndex,
+           y = meanISIms,
+           fill = targetIndex)) +
+  geom_boxplot(outlier.color = "red") +
+  stat_summary(fun.y = mean, 
+               geom = "point", 
+               shape = 21, 
+               size = 2,
+               color = "black",
+               fill = "black") + # Add means
+  geom_point(data = behavioral_data_summ_se, # Add upper outlier cutoff (Mean + 3*SD)
+             aes(x = targetIndex,
+                 y = mean_plus_3sd),
+             color = "black",
+             fill = "gray",
+             shape = 24) + 
+  geom_point(data = behavioral_data_summ_se, # Add lower outlier cutoff (Mean - 3*SD)
+             aes(x = targetIndex,
+                 y = mean_minus_3sd),
+             color = "black",
+             fill = "gray",
+             shape = 25) +
+    scale_x_discrete(labels=c("0" = "0", # Labels for dependent variables
+                            "1" = "1",
+                            "2" = "2",
+                            "3" = "3",
+                            "7" = "7", 
+                            "8" = "8",
+                            "9" = "9",
+                            "99" = "Catch Trials")) +
+  xlab("Number of Shifts") + 
+  ylab("Mean Shifting Speed") + 
+  labs(caption = "Lines within each box represent the median. Black points represent means. Red points represent\n participant means that fall outside of the 1.5*IQR (IQR = distance between 1st and 3rd quantile)\n threshold. Triangles represent the threshold for outlier performance (Mean +/- 3*SD).") +
+  theme_light() +
+  theme(legend.position = "none")
+```
+
+### Identify and remove outliers
+
+We will use a conservative criterion for outlier removal. We can expect 99.72%
+of all observations to be contained within 3 standard deviations from the mean.
+As such, any participants whose performance is greater than this threshold is
+likely not to be representative of the population. Therefore, we will remove 
+those participants whose performance in any one condition was greater than 3 
+standard deviations from the mean.
+
+```{r}
+# Join `behavioral_data_summ_p` and `behavioral_data_summ_se`.
+behavioral_data_summ <- left_join(behavioral_data_summ_p, 
+                                  behavioral_data_summ_se, 
+                                  by = 'targetIndex',
+                                  suffix = c('_p', '_all_p'))
+
+# Add a column that specifies whether the participant's values for a given
+# condition surpass the outlier threshold.
+behavioral_data_summ <- behavioral_data_summ %>% 
+  mutate(outlier = meanISIms_p > mean_plus_3sd | meanISIms_p < mean_minus_3sd)
+
+# Create a vector containing the participant IDs contributing outliers.
+outlier_p <- unique(behavioral_data_summ$p[behavioral_data_summ$outlier == TRUE])
+
+# Filter the participants contributing outliers.
+behavioral_data_summ_outlier_removed <- behavioral_data_summ %>% 
+  filter(!p %in% outlier_p)
+
+# Boxplot summarizing performance without outliers
+ggplot(behavioral_data_summ_outlier_removed,
+       aes(x = targetIndex,
+           y = meanISIms_p,
+           fill = targetIndex)) +
+  geom_boxplot(outlier.color = "red") +
+  stat_summary(fun.y = mean, 
+               geom = "point", 
+               shape = 21, 
+               size = 2,
+               color = "black",
+               fill = "black") + # Add means
+  geom_point(aes(x = targetIndex, # Add upper outlier cutoff (Mean + 3*SD)
+                 y = mean_plus_3sd),
+             color = "black",
+             fill = "gray",
+             shape = 24) + 
+  geom_point(aes(x = targetIndex, # Add lower outlier cutoff (Mean - 3*SD)
+                 y = mean_minus_3sd),
+             color = "black",
+             fill = "gray",
+             shape = 25) +
+    scale_x_discrete(labels=c("0" = "0", 
+                            "1" = "1",
+                            "2" = "2",
+                            "3" = "3",
+                            "7" = "7", 
+                            "8" = "8",
+                            "9" = "9",
+                            "99" = "Catch Trials")) +
+  xlab("Number of Shifts") + 
+  ylab("Mean Shifting Speed") + 
+  labs(caption = "Lines within each box represent the median. Black points represent means. Red points represent\n participant means that fall outside of the 1.5*IQR (IQR = distance between 1st and 3rd quantile)\n threshold. Triangles represent the threshold for outlier performance (Mean +/- 3*SD).") +
+  theme_light() +
+  theme(legend.position = "none")
+
+```
+
+### Figures
+
+```{r}
 # Bar plot with points for mean performance for each participant and error bars
 # representing the standard error corrected for within-subjects effects.
 ggplot(behavioral_data_summ_se,
@@ -83,10 +220,10 @@ ggplot(behavioral_data_summ_se,
              aes(x = targetIndex,
                  y = meanISIms),
              color = "black", 
-             fill = "white", 
+             fill = "black", 
              shape = 21, 
              size = 1, 
-             alpha = 0.75) + 
+             alpha = 0.3) + 
   scale_x_discrete(labels=c("0" = "0", 
                             "1" = "1",
                             "2" = "2",
@@ -96,21 +233,16 @@ ggplot(behavioral_data_summ_se,
                             "9" = "9",
                             "99" = "Catch")) +
   xlab("Number of Shifts") + 
-  ylab("Shifting Speed") + 
+  ylab("Mean Shifting Speed") + 
   labs(caption = "Bar plots represent the mean performance per condition. Points represent participant means, error bars represent 
        the within-subject standard error (Morey, 2008), calculated with the Rmisc package (Hope, 2013).") +
   theme_light() +
   theme(legend.position = "none")
 
-kable(behavioral_data_summ_se,
-      col.names = c("Target Index", "N", "Duration (ms)", "SD", "SE", "CI"), 
-      align = "c", 
-      caption = "Shifting Speed Summary Statistics",
-      digits = 2)
-
 ```
 
 ### ANOVA
+
 ```{r}
 # Convert `participant` and `target index` cols to factor
 behavioral_data_clean <- behavioral_data_clean %>%
@@ -136,6 +268,7 @@ aovDispTable(behavioral_data_clean_ANOVA)
 ```
 
 ## Post-Hoc Tests - Tukey's HSD
+
 ```{r}
 library(nlme) # Add to library if we end up using this approach.
 library(multcomp) # For glht pos-hoc tests
